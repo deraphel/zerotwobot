@@ -32,22 +32,32 @@ def generate():
 
   return card_list      
 
-def combine_image(im_list):
-    file_name = str(uuid.uuid4()) + ".jpg"
+def vconcat_resize_min(im_list, interpolation=cv2.INTER_CUBIC):
+
+    w_min = min(im.shape[1] for im in im_list)
+    im_list_resize = [cv2.resize(im, (w_min, int(im.shape[0] * w_min / im.shape[1])), interpolation=interpolation)
+                      for im in im_list]
+    
+    return cv2.vconcat(im_list_resize)
+
+def hconcat_resize_min(im_list):
 
     h_min = min(im.shape[0] for im in im_list)
     im_list_resize = [cv2.resize(im, (int(im.shape[1] * h_min / im.shape[0]), h_min), interpolation=cv2.INTER_CUBIC)
                       for im in im_list]
 
-    im = cv2.hconcat(im_list_resize)
+    return cv2.hconcat(im_list_resize)
 
-    #Convert ndarray to img using CV2
-    is_success, buffer = cv2.imencode(".JPEG", im, [3, 1])
+def img_to_bytes(img):
+  file_name = "cards.jpg"
 
-    arr = io.BytesIO(buffer)
-    file = discord.File(fp=arr, filename=file_name)
+  #Convert ndarray to JPGimg using CV2
+  is_success, buffer = cv2.imencode(".JPEG", img, [3, 1])
 
-    return file
+  arr = io.BytesIO(buffer)
+  file = discord.File(fp=arr, filename=file_name)
+
+  return file
 
 def deal(num):
   return random.choices(all_cards, k=num)
@@ -55,8 +65,16 @@ def deal(num):
 # Creates an image of all the cards side-by-side as a JPG file
 def image(users_cards):
   imgs = [x.img for x in users_cards]
-  return combine_image(imgs)
+  return img_to_bytes(hconcat_resize_min(imgs))
 
+def user_dealer_image(ucards, dcards):
+  u_cards = [x.img for x in ucards]
+  d_cards = [x.img for x in dcards]
+
+  ucards_aligned = hconcat_resize_min(u_cards)
+  dcards_aligned = hconcat_resize_min(d_cards)
+
+  return img_to_bytes(vconcat_resize_min([ucards_aligned, dcards_aligned]))
 
 #########################################################
 # Global Variables

@@ -86,12 +86,17 @@ async def hit(channel, user):
     card_values = bj_convert_to_values(new_deck)
 
     result = bj_check_user_value(card_values)
-    result_img = cards.image(new_deck)
+    player_total = result[0]
+
+    dealer_result = bj_check_user_value(bj_convert_to_values(dealer))
+    dealer_total = dealer_result[0]
+    
+    combined_img = cards.user_dealer_image(new_deck, dealer)
+
+    await embed(combined_img, player_total, dealer_total, channel, user)
 
     if result[1] == 0: # user busts
       blackjack_data[user_str] = False
-
-      await channel.send(content="{} Your new cards:".format(user.mention), file=result_img)
 
       await channel.send("{} Yikes! You busted with **{}**. Better luck next time! You now have **${}** left to gamble again!".format(user.mention, result[0], game_user.user_dict[user_str]))
       await channel.send(random.choice(bust_gifs))
@@ -100,11 +105,8 @@ async def hit(channel, user):
 
     elif result[1] == 1: # user doesn't bust
       blackjack_data[user_str] = (new_deck, dealer, amt, True)
-      dealer_img = cards.image(dealer)
-
-      await channel.send(content="{} Your new cards:".format(user.mention), file=result_img)
-
-      await channel.send(content="{} Dealer's cards:".format(user.mention), file=dealer_img)
+      
+      await channel.send("{} You can choose to hit with '$bj hit' or stay with '$bj stay'.".format(user.mention))
 
       return
 
@@ -163,12 +165,15 @@ async def play(channel, user, amt):
                 player_cards = cards.deal(2)
                 dealer_cards = cards.deal(2)
 
-                player_img = cards.image(player_cards)
-                dealer_img = cards.image(dealer_cards)
+                combined_img = cards.user_dealer_image(player_cards, dealer_cards)
 
-                player_sum = bj_check_user_value(bj_convert_to_values(player_cards))[0]
+                player_total = bj_check_user_value(bj_convert_to_values(player_cards))[0]
+
+                dealer_total = bj_check_user_value(bj_convert_to_values(dealer_cards))[0]
                 
                 blackjack_data[user_str] = (player_cards, dealer_cards, amt, False)
+
+                await embed(combined_img, player_total, dealer_total, channel, user)
 
                 if check_blackjack(player_cards):
                   if check_blackjack(dealer_cards):
@@ -178,9 +183,6 @@ async def play(channel, user, amt):
                     game_user.save(game_user.user_dict, 'user_data.json')
                     blackjack_data[user_str] = False
 
-                    await channel.send(content="{} Your cards:".format(user.mention), file=player_img)
-
-                    await channel.send(content="{} Dealer's cards:".format(user.mention), file=dealer_img)
                     await channel.send("{} So close! You tied with the dealer with a blackjack. We'll give you a little bit of compensation for disappointing you. You now have **${}** to gamble away!".format(user.mention, game_user.user_dict[user_str]))
 
                     return
@@ -192,20 +194,10 @@ async def play(channel, user, amt):
                     game_user.save(game_user.user_dict, 'user_data.json')
                     blackjack_data[user_str] = False
 
-                    await channel.send(content="{} Your cards:".format(user.mention), file=player_img)
-
-                    await channel.send(content="{} Dealer's cards:".format(user.mention), file=dealer_img)
-
                     await channel.send("{} Damn you're a god! You won immediately with a blackjack and received 2x payout! You now have **${}** to gamble away! Don't let your luck fade away, go again! https://tenor.com/view/my-hero-acadmia-anime-power-gif-15405892".format(user.mention, game_user.user_dict[user_str]))
 
                 else:
-                  dealer_sum = bj_check_user_value(bj_convert_to_values(dealer_cards))[0]
-
-                  await channel.send(content="{} Your cards:".format(user.mention), file=player_img)
-
-                  await channel.send(content="{} Dealer's cards:".format(user.mention), file=dealer_img)
-
-                  await channel.send("{} You have **{}** and the dealer has **{}**. You can choose to hit with '$bj hit', stay with '$bj stay', or double down with '$bj double'.".format(user.mention, player_sum, dealer_sum))
+                  await channel.send("{} You can choose to hit with '$bj hit', stay with '$bj stay', or double down with '$bj double'.".format(user.mention))
 
             else:
                 return await channel.send("{} You have insufficient funds, please change the amount you would like to gamble or rethink your life choices.".format(user.mention))
@@ -235,22 +227,22 @@ async def resolve(channel, user):
       player_total = player_check[0]
       player_outcome = player_check[1]
 
-      player_img = cards.image(player_cards)
+      dealer_check = bj_check_user_value(bj_convert_to_values(dealer_cards))
+      dealer_total = dealer_check[0]
+      dealer_outcome = dealer_check[1]
+
+      combined_img = cards.user_dealer_image(player_cards, dealer_cards)
 
       if player_outcome == 0:
 
         blackjack_data[user_str] = False
 
-        await channel.send(content="Your new cards:", file=player_img)
+        await embed(combined_img, player_total, dealer_total, channel, user)
 
         await channel.send("{} Yikes! You busted with **{}**. Better luck next time! You now have **${}** left to gamble again!".format(user.mention, player_total, game_user.user_dict[user_str]))
         await channel.send(random.choice(bust_gifs))
 
         return
-
-      dealer_check = bj_check_user_value(bj_convert_to_values(dealer_cards))
-      dealer_total = dealer_check[0]
-      dealer_outcome = dealer_check[1]
 
       while dealer_total < 17: # keep dealing cards until the dealer reaches >= 17
         new_dealer_cards = dealer_cards + cards.deal(1)
@@ -260,17 +252,15 @@ async def resolve(channel, user):
 
         dealer_cards = new_dealer_cards
 
-      dealer_img = cards.image(dealer_cards)
+      combined_img = cards.user_dealer_image(player_cards, dealer_cards)
+
+      await embed(combined_img, player_total, dealer_total, channel, user)
 
       if player_total == dealer_total:  # a tie, give money back
           game_user.user_dict[user_str] += data[2]
           game_user.save(game_user.user_dict, 'user_data.json')
 
           blackjack_data[user_str] = False
-
-          await channel.send(content="{} Your cards:".format(user.mention), file=player_img)
-
-          await channel.send(content="{} Dealer's cards:".format(user.mention), file=dealer_img)
 
           return await channel.send("{} You were so close to winning, but the dealer tied with you! Gamble again with your **${}**!".format(user.mention, game_user.user_dict[user_str]))
         
@@ -281,10 +271,6 @@ async def resolve(channel, user):
 
           blackjack_data[user_str] = False
 
-          await channel.send(content="{} Your cards:".format(user.mention), file=player_img)
-
-          await channel.send(content="{} Dealer's cards:".format(user.mention), file=dealer_img)
-
           await channel.send("{} You've won, defeating the dealer's **{}** with your **{}**! You now have **${}** to gamble away! Don't let your good luck fade away!".format(user.mention, dealer_total, player_total, game_user.user_dict[user_str]))
 
           return
@@ -292,13 +278,21 @@ async def resolve(channel, user):
       else: # player loses and gets nothing
           blackjack_data[user_str] = False
 
-          await channel.send(content="{} Your cards:".format(user.mention), file=player_img)
-
-          await channel.send(content="{} Dealer's cards:".format(user.mention), file=dealer_img)
-
           await channel.send("{} Unfortunately the dealer is just superior to you, beating your **{}** with a **{}**. Better luck next time. Gamble again with your **${}** left!".format(user.mention, player_total, dealer_total, game_user.user_dict[user_str]))
 
           return
+
+async def embed(img, ustrength, dstrength, channel, user):
+  # Creates an embed that combines the user's cards with the dealer's cards and makes it look fancier
+
+  embed = discord.Embed(title="Blackjack", description="Your cards (top) and Dealer's cards (bottom)",
+  color = 1146986)
+  embed.set_image(url="attachment://cards.jpg")
+  embed.set_author(name=user.display_name, icon_url=user.avatar_url)
+
+  embed.set_footer(text="Your Hand: *{}* | Dealer's Hand: *{}*".format(ustrength, dstrength))
+
+  return await channel.send(file=img, embed=embed)
 
 ## Helper Functions ##
 def check_blackjack(class_deck):

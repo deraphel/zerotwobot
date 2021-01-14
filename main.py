@@ -24,6 +24,8 @@ class Command:
 reg_command_list = [
   Command('$asl', 'Produces the age, sex, and location of the waifu.'),
 
+  Command('[$give, $givemoney] <user> <amount>', 'Gives the specified user the specified amount.'),
+
   Command('$lottery', 'View the current lottery if in progress and learn how to join it.'),
 
   Command('$buygf', 'Throw all your money at the girl of your dreams at a pathetic attempt to court her. You must be willing to face rejection.'),
@@ -91,15 +93,15 @@ lottery_channels = []
 slot_cost = 50
 slot_update_time = 1
 slot_time_to_reward = 5
-slot_icons = [":heart:", ":apple:", ":100:", ":seven:", ":watermelon:", ":repeat:"]
+slot_icons = [":monkey:", ":apple:", ":100:", ":seven:", ":watermelon:", ":recycle:"]
 #Chance of a specific icon showing up
 slot_odds = [0.3, 0.15, 0.05, 0.05, 0.15, 0.3]
-slot_rewards = {':heart:': 200,
+slot_rewards = {':monkey:': 200,
                 ':apple:': 500,
                 ':100:': 10000,
                 ':seven:': 777777,
                 ':watermelon:': 1000,
-                ':repeat:': 0}
+                ':recycle:': slot_cost}
 
 start_time = datetime.datetime.now()
 daily_dict = defaultdict(lambda: start_time)
@@ -430,6 +432,7 @@ def lottery_reset():
   lottery_num_participants = 0
   lottery_draw = False
   lottery_channels = []
+  lottery_pot = 0
 
   # Set the entry cost to a random number
   lottery_entry_cost = lottery_default_cost ** random.choice(lottery_entry_multipliers)
@@ -624,12 +627,10 @@ async def slots(channel, user):
                 new_txt = new_img + jackpot_msg
                 await img_msg.edit(content=new_txt)
 
-            elif result[1] == ":repeat:":
+            elif result[1] == ":recycle:":
                 free_spin_msg = "{} You haven't lost quite yet because you won a free spin!".format(user.mention)
                 outcome_msg = new_img + free_spin_msg
                 await img_msg.edit(content=outcome_msg)
-
-                game_user.user_dict[user_str] += slot_cost
 
                 return await slots(channel, user)
 
@@ -748,7 +749,7 @@ async def on_message(message):
         except:
           return await channel.send("{} Wrong format for command. Correct usage is '$give <username> <amount>'.".format(author.mention))
 
-        return await give_money(channel, author, recipient, amount)
+        return await game_user.give_money(channel, author, recipient, amount)
       
       else:
         if msg in reg_command_dict.keys():

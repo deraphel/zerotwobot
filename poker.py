@@ -105,7 +105,8 @@ async def start_game(channel, user, amt):
 
         user_img = cards.image(users_cards)
 
-        await channel.send(content="{} Your cards:\n".format(user.mention), file=user_img)
+        await embed(user_img, channel, user, False)
+        #channel.send(content="{} Your cards:\n".format(user.mention), file=user_img)
         #await channel.send(file=user_img)
 
         return
@@ -155,12 +156,16 @@ async def replace_cards(channel, user, pos_list):
 
       #Place the new cards into the poker data and save it
       poker_data[user_str] = (users_cards, dealers_cards, amt, True)
-      user_img = cards.image(users_cards)
-      dealer_img = cards.image(dealers_cards)
+      #user_img = cards.image(users_cards)
+      #dealer_img = cards.image(dealers_cards)
 
-      await channel.send(content="{} Your new cards:".format(user.mention), file=user_img)
+      combined_img = cards.user_dealer_image(users_cards, dealers_cards)
 
-      await channel.send(content="Dealer's hand:", file=dealer_img)
+      await embed(combined_img, channel, user, True)
+
+      #await channel.send(content="{} Your new cards:".format(user.mention), file=user_img)
+
+      #await channel.send(content="Dealer's hand:", file=dealer_img)
 
       return await resolve(channel, user)
 
@@ -244,6 +249,20 @@ async def resolve(channel, user):
   
   else:
     return await channel.send("{} You do not have an active poker game yet. Please use '$poker play <amount>' to start a new game!".format(user.mention))
+
+async def embed(img, channel, user, dealer):
+  # Creates an embed that combines the user's cards with the dealer's cards and makes it look fancier
+  if dealer:
+    desc = "Your cards (top) and Dealer's cards (bot):"
+  else:
+    desc = "Your cards:"
+
+  embed = discord.Embed(title="5 Hand Poker", description=desc,
+  color = 16580705)
+  embed.set_image(url="attachment://cards.jpg")
+  embed.set_author(name=user.display_name, icon_url=user.avatar_url)
+
+  return await channel.send(file=img, embed=embed)
 
 ## Helper Functions ##
 
